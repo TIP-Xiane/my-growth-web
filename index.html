@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Personal Growth & Identity Web</title>
+
+  <!-- Vis.js Network for Interactive Physics Graph -->
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <!-- Firebase JS SDK (Compat version) -->
+<!-- Firebase JS SDK (Compat version) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: #161e2e;
+      --border-color: #2a364f;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent-purple: #a855f7;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* Main Interactive Canvas */
+    #canvas-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+    }
+
+    #mynetwork {
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, #111827 0%, #0b0f19 100%);
+    }
+
+    /* Top Action Bar */
+    .top-bar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      background: rgba(22, 30, 46, 0.88);
+      backdrop-filter: blur(12px);
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Sidebar Details Drawer */
+    #sidebar {
+      width: 400px;
+      background-color: var(--card-bg);
+      border-left: 1px solid var(--border-color);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+      transition: transform 0.3s ease;
+    }
+
+    h2 { font-size: 1.25rem; font-weight: 700; color: var(--text-main); }
+    h3 { font-size: 1rem; font-weight: 600; color: var(--text-main); }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    input[type="text"], textarea, select {
+      background: #0d1322;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 10px 12px;
+      border-radius: 8px;
+      outline: none;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus, textarea:focus, select:focus {
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
+    }
+
+    button {
+      background-color: var(--accent-purple);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    button:hover { filter: brightness(1.15); transform: translateY(-1px); }
+    button.btn-secondary { background-color: #334155; color: var(--text-main); }
+    button.btn-secondary:hover { background-color: #475569; }
+    button.btn-danger { background-color: #dc2626; }
+    button.btn-danger:hover { background-color: #ef4444; }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      width: fit-content;
+      text-transform: uppercase;
+    }
+
+    .badge-exploring { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6; }
+    .badge-active { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid #f97316; }
+    .badge-mastered { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+    .badge-onhold { background: rgba(100, 116, 139, 0.2); color: #94a3b8; border: 1px solid #64748b; }
+
+    /* Date-stamped journal log entries */
+    .log-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 6px;
+    }
+
+    .log-item {
+      background: #0d1322;
+      border-left: 3px solid var(--accent-purple);
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    .log-date { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 3px; }
+
+    /* Modals */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      padding: 24px;
+      border-radius: 16px;
+      width: 420px;
+      max-width: 90%;
+      border: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Mobile Responsive Adjustments */
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+      #sidebar {
+        width: 100%;
+        height: 55vh;
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Main Canvas -->
+  <div id="canvas-container">
+    <div class="top-bar">
+      <button onclick="openAddTopLevelModal()">➕ Add Responsibility</button>
+      <button class="btn-secondary" onclick="openCrossLinkModal()">🔗 Cross-Link Bubbles</button>
+      <button class="btn-secondary" onclick="openFirebaseModal()">⚙️ Cloud Sync</button>
+      <button class="btn-secondary" onclick="exportJSON()">💾 Backup JSON</button>
+    </div>
+    <div id="mynetwork"></div>
+  </div>
+
+  <!-- Sidebar Detail Panel -->
+  <div id="sidebar">
+    <div>
+      <h2 id="detail-title">Select a Bubble</h2>
+      <span id="detail-badge" class="badge badge-active" style="display:none; margin-top:8px;">Active</span>
+    </div>
+
+    <div id="detail-content" style="display: none; flex-direction: column; gap: 14px;">
+      <div class="form-group">
+        <label>Bubble Name</label>
+        <input type="text" id="edit-label" />
+      </div>
+
+      <div class="form-group">
+        <label>Growth Status</label>
+        <select id="edit-status">
+          <option value="Exploring">🌱 Exploring</option>
+          <option value="Active Build">🔥 Active Build</option>
+          <option value="Mastered">🏆 Mastered</option>
+          <option value="On Hold">⏸️ On Hold</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>🎯 Goal & Vision</label>
+        <textarea id="edit-goal" rows="2" placeholder="What are you striving for in this area?"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>⚡ Active Actions</label>
+        <textarea id="edit-actions" rows="3" placeholder="What tangible steps/habits are you taking to reach it?"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>🧠 Identity & Personality Traits</label>
+        <textarea id="edit-identity" rows="2" placeholder="How does this area build and shape who you are?"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>📌 Keepers & Principles</label>
+        <textarea id="edit-principles" rows="2" placeholder="Key insights or rules you want to permanently keep..."></textarea>
+      </div>
+
+      <!-- Date-Stamped Log Entries -->
+      <div class="form-group">
+        <label>📅 Date-Stamped Progress Entries</label>
+        <div style="display: flex; gap: 6px;">
+          <input type="text" id="new-log-text" placeholder="Write a quick update or reflection..." style="flex:1;" />
+          <button onclick="addLogEntry()">Add Log</button>
+        </div>
+        <div id="log-list" class="log-container"></div>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <button style="flex:1;" onclick="saveNodeDetails()">Save Changes</button>
+        <button style="flex:1;" class="btn-secondary" onclick="openAddChildModal()">➕ Add Sub-Bubble</button>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-secondary" style="flex:1;" onclick="toggleCollapseSelected()">👁️ Collapse / Expand</button>
+        <button class="btn-danger" style="flex:1;" id="btn-delete-node" onclick="deleteSelectedNode()">Delete Bubble</button>
+      </div>
+    </div>
+
+    <div id="no-selection" style="color: var(--text-muted); font-size: 0.9rem; margin-top: 20px;">
+      👈 Tap or click any bubble on your canvas to view its purpose, actions, personality traits, and date-stamped logs!
+    </div>
+  </div>
+
+  <!-- Modal: Add Sub-Bubble -->
+  <div id="add-child-modal" class="modal">
+    <div class="modal-content">
+      <h3>Add New Sub-Bubble</h3>
+      <div class="form-group">
+        <label>Parent Node</label>
+        <input type="text" id="modal-parent-name" disabled />
+      </div>
+      <div class="form-group">
+        <label>Bubble Title</label>
+        <input type="text" id="modal-child-title" placeholder="e.g. Master Python, Daily Mindset..." />
+      </div>
+      <div class="form-group">
+        <label>Initial Status</label>
+        <select id="modal-child-status">
+          <option value="Exploring">🌱 Exploring</option>
+          <option value="Active Build" selected>🔥 Active Build</option>
+          <option value="Mastered">🏆 Mastered</option>
+          <option value="On Hold">⏸️ On Hold</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <button style="flex:1;" onclick="submitAddChild()">Create Sub-Bubble</button>
+        <button class="btn-secondary" onclick="closeModal('add-child-modal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Cross-Link -->
+  <div id="crosslink-modal" class="modal">
+    <div class="modal-content">
+      <h3>Cross-Link Two Bubbles</h3>
+      <div class="form-group">
+        <label>First Bubble</label>
+        <select id="cross-source"></select>
+      </div>
+      <div class="form-group">
+        <label>Second Bubble</label>
+        <select id="cross-target"></select>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <button style="flex:1;" onclick="submitCrossLink()">Connect Bubbles</button>
+        <button class="btn-secondary" onclick="closeModal('crosslink-modal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Firebase Sync Config -->
+  <div id="firebase-modal" class="modal">
+    <div class="modal-content">
+      <h3>⚙️ Cloud Sync Config</h3>
+      <p style="font-size: 0.8rem; color: var(--text-muted);">Your Realtime Database URL is pre-configured. Paste your API Key below to complete setup!</p>
+      <div class="form-group">
+        <label>Database URL</label>
+        <input type="text" id="fb-db-url" value="https://my-growth-web-default-rtdb.asia-southeast1.firebasedatabase.app/
+" />
+      </div>
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="text" id="fb-api-key" placeholder="AIzaSyDlWgYRZY4PQRrHW9LtzZyEISjZI_ANM0c" />
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <button style="flex:1;" onclick="saveFirebaseConfig()">Save & Connect</button>
+        <button class="btn-secondary" onclick="closeModal('firebase-modal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initial Default Data Hierarchy
+    const DEFAULT_DATA = {
+      nodes: [
+        { id: 'me', label: 'ME\n(Core)', shape: 'ellipse', color: { background: '#f59e0b', border: '#fbbf24' }, font: { color: '#ffffff', size: 22, bold: true }, size: 40, status: 'Active Build', goal: 'Central anchor representing identity and vision.' },
+        
+        // Top-Level Responsibilities
+        { id: 'myself', label: 'Myself', parent: 'me', shape: 'box', color: { background: '#a855f7', border: '#c084fc' }, font: { color: '#ffffff', size: 16 }, status: 'Active Build', goal: 'Personal growth and health pillars.' },
+        { id: 'house', label: 'House / Fam', parent: 'me', shape: 'box', color: { background: '#10b981', border: '#34d399' }, font: { color: '#ffffff', size: 16 }, status: 'Active Build', goal: 'Living space and family commitments.' },
+        { id: 'academics', label: 'Academics', parent: 'me', shape: 'box', color: { background: '#06b6d4', border: '#22d3ee' }, font: { color: '#ffffff', size: 16 }, status: 'Active Build', goal: 'Intellectual growth and coursework.' },
+
+        // 5 Pillars under Myself (Monochromatic Violet hues)
+        { id: 'p_mind', label: 'Mind & Learning', parent: 'myself', shape: 'dot', color: { background: '#c084fc', border: '#e9d5ff' }, status: 'Active Build', goal: 'Reading and mental clarity.' },
+        { id: 'p_body', label: 'Body & Energy', parent: 'myself', shape: 'dot', color: { background: '#a855f7', border: '#e9d5ff' }, status: 'Active Build', goal: 'Physical health and sleep.' },
+        { id: 'p_craft', label: 'Craft & Projects', parent: 'myself', shape: 'dot', color: { background: '#9333ea', border: '#e9d5ff' }, status: 'Active Build', goal: 'Coding and tool building.' },
+        { id: 'p_habits', label: 'Habits & Mindset', parent: 'myself', shape: 'dot', color: { background: '#7e22ce', border: '#e9d5ff' }, status: 'Active Build', goal: 'Daily discipline.' },
+        { id: 'p_relationships', label: 'Relationships', parent: 'myself', shape: 'dot', color: { background: '#6b21a8', border: '#e9d5ff' }, status: 'Active Build', goal: 'Family and core network.' }
+      ],
+      edges: [
+        { from: 'me', to: 'myself', length: 150 },
+        { from: 'me', to: 'house', length: 150 },
+        { from: 'me', to: 'academics', length: 150 },
+        { from: 'myself', to: 'p_mind', length: 100 },
+        { from: 'myself', to: 'p_body', length: 100 },
+        { from: 'myself', to: 'p_craft', length: 100 },
+        { from: 'myself', to: 'p_habits', length: 100 },
+        { from: 'myself', to: 'p_relationships', length: 100 }
+      ]
+    };
+
+    let nodesDataSet, edgesDataSet, network;
+    let selectedNodeId = null;
+    let firebaseDb = null;
+    let collapsedNodes = new Set();
+
+    function init() {
+      const savedData = localStorage.getItem('growth_web_data_v2');
+      const dataToLoad = savedData ? JSON.parse(savedData) : DEFAULT_DATA;
+
+      nodesDataSet = new vis.DataSet(dataToLoad.nodes);
+      edgesDataSet = new vis.DataSet(dataToLoad.edges);
+
+      const container = document.getElementById('mynetwork');
+      const data = { nodes: nodesDataSet, edges: edgesDataSet };
+      const options = {
+        nodes: { font: { color: '#ffffff', size: 14 }, borderWidth: 2, shadow: true },
+        edges: { color: { color: '#334155', highlight: '#a855f7' }, width: 2, smooth: { type: 'continuous' } },
+        physics: { stabilization: false, barnesHut: { gravitationalConstant: -3200, springLength: 110 } },
+        interaction: { hover: true, zoomView: true }
+      };
+
+network = new vis.Network(container, data, options);
+      network.on("click", function (params) {
+        if (params.nodes.length > 0) {
+          selectNode(params.nodes[0]);
+        } else {
+          deselectNode();
+        }
+      });
+
+      // Populate preset DB URL in modal
+      const savedConfig = localStorage.getItem('fb_config');
+      if (savedConfig) {
+        try {
+          const cfg = JSON.parse(savedConfig);
+          if (cfg.apiKey) document.getElementById('fb-api-key').value = cfg.apiKey;
+          if (cfg.databaseURL) document.getElementById('fb-db-url').value = cfg.databaseURL;
+        } catch(e) {}
+      }
+
+      // Initialize Firebase if credentials exist
+      initFirebaseFromStorage();
+    }
+
+    function saveState() {
+      const payload = {
+        nodes: nodesDataSet.get(),
+        edges: edgesDataSet.get()
+      };
+      
+      // Always save locally
+      localStorage.setItem('growth_web_data_v2', JSON.stringify(payload));
+
+      // Realtime Cloud Sync if Firebase active
+      if (firebaseDb) {
+        firebaseDb.ref('user_growth_web').set(payload);
+      }
+    }
+
+    function selectNode(id) {
+      selectedNodeId = id;
+      const node = nodesDataSet.get(id);
+      if (!node) return;
+
+      document.getElementById('no-selection').style.display = 'none';
+      document.getElementById('detail-content').style.display = 'flex';
+
+      document.getElementById('detail-title').innerText = node.label.replace('\n', ' ');
+      document.getElementById('edit-label').value = node.label.replace('\n', ' ');
+      document.getElementById('edit-status').value = node.status || 'Active Build';
+      document.getElementById('edit-goal').value = node.goal || '';
+      document.getElementById('edit-actions').value = node.actions || '';
+      document.getElementById('edit-identity').value = node.identity || '';
+      document.getElementById('edit-principles').value = node.principles || '';
+
+      const badge = document.getElementById('detail-badge');
+badge.style.display = 'inline-block';
+      badge.innerText = node.status || 'Active Build';
+      badge.className = 'badge ' + getBadgeClass(node.status);
+
+      renderLogList(node.logs || []);
+      document.getElementById('btn-delete-node').style.display = (id === 'me') ? 'none' : 'block';
+    }
+
+    function deselectNode() {
+      selectedNodeId = null;
+      document.getElementById('detail-content').style.display = 'none';
+      document.getElementById('detail-badge').style.display = 'none';
+      document.getElementById('no-selection').style.display = 'block';
+    }
+
+    function getBadgeClass(status) {
+      if (status === 'Exploring') return 'badge-exploring';
+      if (status === 'Mastered') return 'badge-mastered';
+      if (status === 'On Hold') return 'badge-onhold';
+      return 'badge-active';
+    }
+
+    function saveNodeDetails() {
+      if (!selectedNodeId) return;
+
+      nodesDataSet.update({
+        id: selectedNodeId,
+        label: document.getElementById('edit-label').value,
+        status: document.getElementById('edit-status').value,
+        goal: document.getElementById('edit-goal').value,
+        actions: document.getElementById('edit-actions').value,
+        identity: document.getElementById('edit-identity').value,
+        principles: document.getElementById('edit-principles').value
+      });
+
+      saveState();
+      selectNode(selectedNodeId);
+    }
+
+    function addLogEntry() {
+      if (!selectedNodeId) return;
+      const input = document.getElementById('new-log-text');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const node = nodesDataSet.get(selectedNodeId);
+      const logs = node.logs || [];
+      logs.unshift({
+        timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }),
+        text: text
+      });
+
+      nodesDataSet.update({ id: selectedNodeId, logs: logs });
+      input.value = '';
+      saveState();
+      renderLogList(logs);
+    }
+
+    function renderLogList(logs) {
+      const container = document.getElementById('log-list');
+      container.innerHTML = '';
+      if (logs.length === 0) {
+        container.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted);">No date-stamped entries yet.</div>';
+        return;
+      }
+      logs.forEach(log => {
+        const item = document.createElement('div');
+        item.className = 'log-item';
+        item.innerHTML = `<div class="log-date">${log.timestamp}</div><div>${log.text}</div>`;
+        container.appendChild(item);
+      });
+    }
+
+    function openAddTopLevelModal() {
+      const title = prompt("Enter New Top-Level Responsibility Title:");
+      if (!title) return;
+      const id = 'resp_' + Date.now();
+      nodesDataSet.add({
+        id: id,
+        label: title,
+        parent: 'me',
+        shape: 'box',
+        color: { background: '#3b82f6', border: '#60a5fa' },
+        status: 'Active Build'
+      });
+      edgesDataSet.add({ from: 'me', to: id, length: 150 });
+      saveState();
+      selectNode(id);
+    }
+
+    function openAddChildModal() {
+      if (!selectedNodeId) return;
+      const parentNode = nodesDataSet.get(selectedNodeId);
+      document.getElementById('modal-parent-name').value = parentNode.label.replace('\n', ' ');
+      document.getElementById('modal-child-title').value = '';
+      document.getElementById('add-child-modal').style.display = 'flex';
+    }
+
+    function submitAddChild() {
+      const title = document.getElementById('modal-child-title').value.trim();
+      const status = document.getElementById('modal-child-status').value;
+      if (!title) return alert('Enter a title');
+
+      const parentNode = nodesDataSet.get(selectedNodeId);
+const newId = 'node_' + Date.now();
+      nodesDataSet.add({
+        id: newId,
+        label: title,
+        parent: selectedNodeId,
+        shape: 'dot',
+        color: { background: parentNode ? parentNode.color.background : '#a855f7', border: '#ffffff' },
+        status: status
+      });
+
+      edgesDataSet.add({ from: selectedNodeId, to: newId, length: 90 });
+      saveState();
+      closeModal('add-child-modal');
+      selectNode(newId);
+    }
+
+    function toggleCollapseSelected() {
+      if (!selectedNodeId) return;
+      const isCollapsed = collapsedNodes.has(selectedNodeId);
+
+      function setHiddenRecursive(pId, hidden) {
+        const children = nodesDataSet.get({ filter: item => item.parent === pId });
+        children.forEach(child => {
+          nodesDataSet.update({ id: child.id, hidden: hidden });
+
+          setHiddenRecursive(child.id, hidden);
+        });
+      }
+
+      if (isCollapsed) {
+        collapsedNodes.delete(selectedNodeId);
+        setHiddenRecursive(selectedNodeId, false);
+      } else {
+        collapsedNodes.add(selectedNodeId);
+        setHiddenRecursive(selectedNodeId, true);
+      }
+    }
+
+    function openCrossLinkModal() {
+      const sourceSel = document.getElementById('cross-source');
+      const targetSel = document.getElementById('cross-target');
+      sourceSel.innerHTML = '';
+      targetSel.innerHTML = '';
+
+      nodesDataSet.get().forEach(n => {
+const opt = `<option value="${n.id}">${n.label.replace('\n', ' ')}</option>`;        sourceSel.innerHTML += opt;
+        targetSel.innerHTML += opt;
+      });
+
+      document.getElementById('crosslink-modal').style.display = 'flex';
+    }
+
+    function submitCrossLink() {
+      const src = document.getElementById('cross-source').value;
+      const tgt = document.getElementById('cross-target').value;
+      if (src === tgt) return alert('Select two different bubbles');
+
+      edgesDataSet.add({
+        from: src,
+        to: tgt,
+        dashes: true,
+        color: { color: '#f43f5e' },
+        physics: false
+      });
+
+      saveState();
+      closeModal('crosslink-modal');
+    }
+
+    function deleteSelectedNode() {
+      if (!selectedNodeId || selectedNodeId === 'me') return;
+      if (!confirm('Delete this bubble and connected children?')) return;
+
+      const toDelete = [selectedNodeId];
+      function findChildren(pId) {
+        nodesDataSet.get({ filter: item => item.parent === pId }).forEach(c => {
+          toDelete.push(c.id);
+          findChildren(c.id);
+        });
+      }
+      findChildren(selectedNodeId);
+
+      nodesDataSet.remove(toDelete);
+      saveState();
+      deselectNode();
+    }
+
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    function openFirebaseModal() { document.getElementById('firebase-modal').style.display = 'flex'; }
+
+    function saveFirebaseConfig() {
+      const url = document.getElementById('fb-db-url').value.trim();
+      const key = document.getElementById('fb-api-key').value.trim();
+      if (!url || !key) return alert('Provide both Database URL and API Key');
+
+      localStorage.setItem('fb_config', JSON.stringify({ databaseURL: url, apiKey: key }));
+      closeModal('firebase-modal');
+      location.reload();
+    }
+
+    function initFirebaseFromStorage() {
+      const saved = localStorage.getItem('fb_config');
+      if (!saved) return;
+      try {
+        const cfg = JSON.parse(saved);
+        if (!firebase.apps.length) {
+          firebase.initializeApp(cfg);
+        }
+        firebaseDb = firebase.database();
+
+        // Listen for live changes from phone/cloud
+        firebaseDb.ref('user_growth_web').on('value', snapshot => {
+          const val = snapshot.val();
+          if (val && val.nodes && val.edges) {
+            nodesDataSet.clear();
+            edgesDataSet.clear();
+            nodesDataSet.add(val.nodes);
+            edgesDataSet.add(val.edges);
+          }
+        });
+      } catch (err) {
+        console.error("Firebase init failed:", err);
+      }
+    }
+
+    function exportJSON() {
+      const payload = { nodes: nodesDataSet.get(), edges: edgesDataSet.get() };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+     const opt = `<option value="${n.id}">${n.label.replace('\n', ' ')}</option>`;        sourceSel.innerHTML += opt;
+
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
